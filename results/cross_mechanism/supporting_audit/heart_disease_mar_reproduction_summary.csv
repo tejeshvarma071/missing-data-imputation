@@ -1,0 +1,4 @@
+Missing_Rate,Records,Reproduced_Original_Mean,Reproduced_TypeSafe_Mean,Saved_Original_Mean,Saved_Corrected_Mean,Saved_Harmonized_Mean,Original_Mask_Matches,Corrected_Mask_Matches,Corrected_Cell_Matches,Original_Accuracy_Matches,Corrected_Accuracy_Matches,Harmonized_Accuracy_Matches
+0.1,25,0.125,0.56,0.12499999999999999,0.56,0.12499999999999999,25,25,25,25,25,0
+0.3,25,0.13123348873348875,0.5746522921522922,0.1312334887334887,0.5746522921522922,0.1312334887334887,25,25,25,25,25,0
+0.5,25,0.1334002789400279,0.577452580195258,0.13340027894002784,0.577452580195258,0.13340027894002784,25,25,25,25,25,0
