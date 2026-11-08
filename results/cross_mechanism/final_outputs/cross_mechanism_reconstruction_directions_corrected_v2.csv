@@ -1,0 +1,8 @@
+Mechanism_A,Mechanism_B,Metric,Direction,Significant_Count
+MAR,MNAR,Categorical_Accuracy,MAR better,9
+MAR,MNAR,Normalized_MAE,MAR better,31
+MAR,MNAR,Normalized_RMSE,MAR better,21
+MCAR,MAR,Normalized_MAE,MAR better,7
+MCAR,MNAR,Categorical_Accuracy,MCAR better,9
+MCAR,MNAR,Normalized_MAE,MCAR better,30
+MCAR,MNAR,Normalized_RMSE,MCAR better,25
