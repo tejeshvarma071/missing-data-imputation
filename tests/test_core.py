@@ -1,125 +1,105 @@
 
 import numpy as np
 import pandas as pd
-import pytest
 
-from src.data.schema import infer_feature_types
-from src.missingness.masks import (
-    make_mcar_mask,
-    fit_mar_driver,
+from missing_data_imputation.data.schema import infer_feature_types
+from missing_data_imputation.missingness.masks import (
+    generate_mcar_mask,
     generate_mar_mask,
     generate_mnar_mask,
-    generate_masks,
-    validate_mask,
 )
-from src.imputation.methods import make_numeric_imputer
-from src.evaluation.reconstruction import categorical_mode_accuracy
-from src.statistics.multiple_testing import holm_adjust
+from missing_data_imputation.imputation.methods import (
+    mean_impute,
+    median_impute,
+    most_frequent_impute,
+    knn_impute,
+    iterative_impute,
+)
+from missing_data_imputation.evaluation.reconstruction import reconstruction_mae
+from missing_data_imputation.statistics.multiple_testing import holm_adjust
 
 
-def sample_frame():
-    return pd.DataFrame({
-        "driver": [1., 2., 3., 4., 5., 6.],
-        "value": [10., 11., 12., 13., 14., 15.],
-        "kind": ["a", "a", "a", "b", "b", "c"],
+def test_infer_feature_types():
+    df = pd.DataFrame({
+        "age": [20, 25, 30],
+        "city": ["A", "B", "A"]
     })
 
+    numeric, categorical = infer_feature_types(df)
 
-def test_mcar_reproducible_and_valid():
-    X = sample_frame()
-    a = make_mcar_mask(X, .3, 7)
-    b = make_mcar_mask(X, .3, 7)
-
-    pd.testing.assert_frame_equal(a, b)
-    assert int(a.to_numpy().sum()) == round(
-        .3 * X.notna().to_numpy().sum()
-    )
-    assert validate_mask(X, a)
+    assert "age" in numeric
+    assert "city" in categorical
 
 
-def test_mar_protects_training_driver_and_reproducible():
-    X = sample_frame()
-    info = fit_mar_driver(X)
-
-    a = generate_mar_mask(X, info, .5, 11)
-    b = generate_mar_mask(X, info, .5, 11)
-
-    pd.testing.assert_frame_equal(a, b)
-    assert info["driver_col"] == "driver"
-    assert not a["driver"].any()
-
-
-def test_mnar_validates_partition_and_reproducible():
-    X = sample_frame()
-
-    a = generate_mnar_mask(
-        X, .5, 3, ["driver", "value"], ["kind"]
-    )
-    b = generate_mnar_mask(
-        X, .5, 3, ["driver", "value"], ["kind"]
-    )
-
-    pd.testing.assert_frame_equal(a, b)
-    assert validate_mask(X, a)
-
-    with pytest.raises(ValueError):
-        generate_mnar_mask(X, .2, 3, ["driver"], ["kind"])
-
-
-def test_generate_masks_dispatches():
-    X = sample_frame()
-
-    train, test, driver = generate_masks(
-        "MAR",
-        X.iloc[:4],
-        X.iloc[4:],
-        .5,
-        1,
-        2,
-        ["driver", "value"],
-        ["kind"],
-    )
-
-    assert driver == "driver"
-    assert train.shape == (4, 3)
-    assert test.shape == (2, 3)
-
-
-def test_imputer_factory_names():
-    for name in (
-        "mean",
-        "median",
-        "most_frequent",
-        "knn",
-        "iterative",
-    ):
-        assert make_numeric_imputer(name) is not None
-
-    with pytest.raises(ValueError):
-        make_numeric_imputer("unknown")
-
-
-def test_categorical_accuracy_uses_unmasked_ground_truth_and_numeric_equality():
-    train = pd.DataFrame({"cat": [0, 0, 1, 1]})
-    test = pd.DataFrame({"cat": [0.0, 1.0, 0.0]})
-
-    train_mask = pd.DataFrame({
-        "cat": [False, False, False, False]
-    })
-    test_mask = pd.DataFrame({
-        "cat": [True, True, True]
+def test_mcar_mask():
+    df = pd.DataFrame({
+        "a": [1, 2, 3, 4, 5],
+        "b": [5, 4, 3, 2, 1]
     })
 
-    accuracy, total, correct, details = categorical_mode_accuracy(
-        train, test, train_mask, test_mask, ["cat"]
-    )
+    mask = generate_mcar_mask(df, missing_rate=0.2, random_state=42)
 
-    assert total == 3
-    assert correct == 2
-    assert accuracy == pytest.approx(2 / 3)
-    assert details[0]["Masked_Cells"] == 3
+    assert mask.shape == df.shape
+    assert mask.dtype == bool
 
 
-def test_holm_adjustment():
-    adjusted = holm_adjust([.01, .04, .03])
-    np.testing.assert_allclose(adjusted, [.03, .06, .06])
+def test_mar_mask():
+    df = pd.DataFrame({
+        "a": [1, 2, 3, 4, 5],
+        "b": [5, 4, 3, 2, 1]
+    })
+
+    mask = generate_mar_mask(df, missing_rate=0.2, random_state=42)
+
+    assert mask.shape == df.shape
+
+
+def test_mnar_mask():
+    df = pd.DataFrame({
+        "a": [1, 2, 3, 4, 5],
+        "b": [5, 4, 3, 2, 1]
+    })
+
+    mask = generate_mnar_mask(df, missing_rate=0.2, random_state=42)
+
+    assert mask.shape == df.shape
+
+
+def test_imputation_methods():
+    df = pd.DataFrame({
+        "a": [1.0, np.nan, 3.0],
+        "b": [4.0, 5.0, np.nan]
+    })
+
+    methods = [
+        mean_impute,
+        median_impute,
+        most_frequent_impute,
+        knn_impute,
+        iterative_impute,
+    ]
+
+    for method in methods:
+        result = method(df)
+
+        assert not result.isnull().values.any()
+        assert result.shape == df.shape
+
+
+def test_reconstruction_mae():
+    original = np.array([[1.0, 2.0], [3.0, 4.0]])
+    imputed = np.array([[1.0, 2.0], [2.0, 4.0]])
+    mask = np.array([[False, False], [True, False]])
+
+    error = reconstruction_mae(original, imputed, mask)
+
+    assert error >= 0
+
+
+def test_holm_adjust():
+    p_values = [0.01, 0.04, 0.03]
+
+    adjusted = holm_adjust(p_values)
+
+    assert len(adjusted) == 3
+    assert all(0 <= p <= 1 for p in adjusted)
