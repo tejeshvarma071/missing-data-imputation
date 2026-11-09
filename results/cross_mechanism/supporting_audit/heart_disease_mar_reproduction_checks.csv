@@ -1,0 +1,10 @@
+Check,Passed
+All original rows found,True
+All corrected rows found,True
+All harmonized v2 rows found,True
+All original mask counts match,True
+All corrected mask counts match,True
+All corrected cell counts match,True
+All original accuracies match,True
+All corrected accuracies match,True
+All harmonized v2 accuracies match,True
